@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ app_title }}</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --sidebar: #fbfcfd;
+    --border: #e3e6ea;
+    --border-soft: #eef1f4;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --faint: #9aa3af;
+    --accent: #2563eb;
+    --accent-soft: #eff4ff;
+    --ok: #15803d;
+    --ok-soft: #f0fdf4;
+    --warn: #b45309;
+    --warn-soft: #fffbeb;
+    --bad: #dc2626;
+    --bad-soft: #fef2f2;
+    --radius: 9px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --shadow: 0 1px 2px rgba(15,23,42,.05);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 13.5px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; border: 0; background: none; }
+  code, .mono { font-family: var(--mono); }
+
+  /* ── 顶栏 ── */
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 16px; height: 52px; flex: 0 0 auto;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: baseline; gap: 7px; font-weight: 600; letter-spacing: .2px; }
+  .brand .ver { font-size: 11px; color: var(--faint); font-family: var(--mono); font-weight: 400; }
+  .vaultpath {
+    font-family: var(--mono); font-size: 11.5px; color: var(--faint);
+    max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .spacer { flex: 1; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 20px; font-size: 12px;
+    background: #f1f3f6; color: var(--muted); white-space: nowrap;
+  }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.bad { background: var(--bad-soft); color: var(--bad); }
+  .btn {
+    padding: 6px 12px; border-radius: var(--radius); font-size: 12.5px; font-weight: 500;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text);
+    transition: background .12s, border-color .12s; white-space: nowrap;
+  }
+  .btn:hover { background: #f4f6f8; border-color: #d3d9e0; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+  .btn.danger { color: var(--bad); border-color: #f3c9c9; }
+  .btn.danger:hover { background: var(--bad-soft); }
+  .btn.sm { padding: 3px 9px; font-size: 11.5px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* ── 主体 ── */
+  main { flex: 1; display: flex; min-height: 0; }
+  .sidebar {
+    width: 344px; flex: 0 0 auto; background: var(--sidebar);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0;
+  }
+  .filters { padding: 12px 12px 10px; border-bottom: 1px solid var(--border-soft); }
+  .searchwrap { position: relative; }
+  .searchwrap input {
+    width: 100%; padding: 7px 10px 7px 28px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--panel); outline: none;
+  }
+  .searchwrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .searchwrap .icon {
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    color: var(--faint); font-size: 12px; pointer-events: none;
+  }
+  .filterrow { display: flex; gap: 6px; margin-top: 8px; }
+  .filterrow select {
+    flex: 1; min-width: 0; padding: 5px 7px; font-size: 12px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--panel); outline: none;
+  }
+  .toggles { display: flex; gap: 14px; margin-top: 9px; font-size: 12px; color: var(--muted); }
+  .toggles label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .listhead {
+    padding: 8px 14px 6px; font-size: 11.5px; color: var(--faint);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .list { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+  .item {
+    padding: 8px 10px; border-radius: var(--radius); cursor: pointer;
+    border: 1px solid transparent; margin-bottom: 2px;
+  }
+  .item:hover { background: #f1f4f8; }
+  .item.active { background: var(--accent-soft); border-color: #c9dbff; }
+  .item .t1 { display: flex; align-items: center; gap: 6px; }
+  .item .title {
+    font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+  }
+  .item .t2 {
+    display: flex; gap: 7px; font-size: 11.5px; color: var(--muted); margin-top: 1px;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  .item .t2 .host { font-family: var(--mono); font-size: 11px; }
+  .badge {
+    font-size: 10.5px; padding: 1px 6px; border-radius: 5px;
+    background: #eef1f5; color: #5b6572; flex: 0 0 auto;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
+  .dot.fav { background: #f59e0b; }
+  .dot.arch { background: #cbd2da; }
+
+  /* ── 详情 ── */
+  .detail { flex: 1; min-width: 0; overflow-y: auto; padding: 22px 26px 60px; }
+  .empty {
+    height: 100%; display: grid; place-items: center; color: var(--faint); font-size: 13px;
+    text-align: center; line-height: 2;
+  }
+  .dhead { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .dhead h2 { margin: 0; font-size: 19px; font-weight: 600; word-break: break-word; }
+  .dhead .meta { display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+  .dactions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+  .section { margin-top: 22px; }
+  .section > h3 {
+    margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .6px;
+  }
+  /* 带右侧操作按钮的小标题，如「历史密码（3）  显示」 */
+  .sechead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .sechead > h3 {
+    margin: 0; font-size: 12px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .6px;
+  }
+  .sechead > .btn { margin-left: auto; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .frow {
+    display: flex; align-items: flex-start; gap: 12px; padding: 8px 12px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .frow:last-child { border-bottom: 0; }
+  .frow .flabel { flex: 0 0 132px; color: var(--muted); font-size: 12.5px; padding-top: 1px; word-break: break-word; }
+  .frow .fval {
+    flex: 1; min-width: 0; word-break: break-word; white-space: pre-wrap;
+    font-family: var(--mono); font-size: 12.5px;
+  }
+  .frow .fval.plain { font-family: inherit; font-size: 13px; }
+  .frow .facts { flex: 0 0 auto; display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
+  .frow:hover .facts { opacity: 1; }
+  .frow.secret .fval { letter-spacing: .5px; }
+  .tagchips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    padding: 2px 8px; border-radius: 20px; background: #eef1f5; color: #5b6572; font-size: 11.5px;
+  }
+  .strength { display: flex; align-items: center; gap: 9px; font-size: 12px; }
+  .meter { display: flex; gap: 3px; }
+  .meter i { width: 22px; height: 5px; border-radius: 3px; background: #e5e8ec; display: block; }
+  .meter i.on-0, .meter i.on-1 { background: #dc2626; }
+  .meter i.on-2 { background: #f59e0b; }
+  .meter i.on-3, .meter i.on-4 { background: #16a34a; }
+  .warns { color: var(--warn); font-size: 12px; }
+  details.formbox summary {
+    cursor: pointer; color: var(--muted); font-size: 12px; padding: 8px 12px; user-select: none;
+  }
+  details.formbox summary:hover { color: var(--text); }
+
+  /* ── 弹层 ── */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,.34);
+    display: none; align-items: flex-start; justify-content: center; padding: 56px 20px 20px; z-index: 60;
+  }
+  .overlay.on { display: flex; }
+  .modal {
+    background: var(--panel); border-radius: 13px; width: min(620px, 100%);
+    max-height: calc(100vh - 90px); display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(15,23,42,.22);
+  }
+  .modal.wide { width: min(880px, 100%); }
+  .mhead {
+    display: flex; align-items: center; gap: 10px; padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mhead h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  .mhead .x { margin-left: auto; font-size: 18px; color: var(--faint); line-height: 1; padding: 2px 6px; border-radius: 6px; }
+  .mhead .x:hover { background: #f1f3f6; color: var(--text); }
+  .mbody { padding: 18px 20px; overflow-y: auto; }
+  .mfoot {
+    display: flex; gap: 8px; justify-content: flex-end; padding: 14px 20px;
+    border-top: 1px solid var(--border); background: var(--sidebar);
+    border-radius: 0 0 13px 13px;
+  }
+  .field { margin-bottom: 13px; }
+  .field > label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .field input[type=text], .field input[type=password], .field textarea, .field select {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+    border-radius: 7px; background: var(--panel); outline: none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .field textarea { min-height: 72px; resize: vertical; font-family: var(--mono); font-size: 12.5px; }
+  .field .withbtn { display: flex; gap: 6px; }
+  .field .withbtn input { flex: 1; font-family: var(--mono); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  .genout {
+    display: flex; align-items: center; gap: 10px; padding: 11px 13px;
+    background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius);
+    font-family: var(--mono); font-size: 14px; word-break: break-all;
+  }
+  .genlist { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .genlist .genout { padding: 7px 11px; font-size: 13px; }
+  .genlist .v { flex: 1; }
+  .rowline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .rowline input[type=range] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+  .rowline .num { font-family: var(--mono); font-size: 13px; width: 30px; text-align: right; }
+  .ckline { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+  .ckline label { display: inline-flex; align-items: center; gap: 5px; }
+
+  /* 体检 */
+  .healthwrap { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .healthscore { font-size: 34px; font-weight: 650; line-height: 1; }
+  .histo { flex: 1; font-size: 12px; }
+  .histo .hrow { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .histo .hbar { height: 8px; border-radius: 4px; background: #e5e8ec; flex: 1; max-width: 220px; overflow: hidden; }
+  .histo .hbar i { display: block; height: 100%; border-radius: 4px; }
+  .histo .hlab { width: 34px; color: var(--muted); }
+  .histo .hnum { width: 32px; text-align: right; font-family: var(--mono); color: var(--muted); }
+  .findings ul { list-style: none; margin: 0; padding: 0; }
+  .findings li {
+    display: flex; gap: 10px; align-items: baseline; padding: 6px 9px; border-radius: 7px;
+    font-size: 12.5px;
+  }
+  .findings li:hover { background: #f4f6f8; }
+  .findings li button { color: var(--accent); text-align: left; padding: 0; }
+  .findings li .det { color: var(--muted); margin-left: auto; flex: 0 0 auto; }
+
+  /* toast */
+  .toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 90; }
+  .toast {
+    background: #1f2937; color: #f8fafc; padding: 9px 14px; border-radius: 9px;
+    font-size: 12.5px; box-shadow: 0 8px 24px rgba(15,23,42,.24); max-width: 340px;
+    animation: slidein .18s ease-out;
+  }
+  .toast.err { background: #b91c1c; }
+  .toast.ok { background: #15803d; }
+  @keyframes slidein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  /* 服务停止后的兜底画面：必须把已渲染的敏感内容整页替换掉 */
+  .gone {
+    position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+    background: var(--bg); text-align: center; padding: 24px;
+  }
+  .gone .box { max-width: 460px; }
+  .gone .icon { font-size: 30px; margin-bottom: 10px; }
+  .gone h2 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+  .gone p { margin: 0 0 6px; color: var(--muted); font-size: 13px; line-height: 1.8; }
+  .gone code {
+    font-family: var(--mono); background: #eef1f5; padding: 2px 7px;
+    border-radius: 5px; font-size: 12.5px; color: #475569;
+  }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #d5dae0; border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: #c0c7d0; background-clip: content-box; }
+</style>
+</head>
+<body data-token="{{ token }}" data-idle="{{ idle_lock }}">
+
+<header class="topbar">
+  <div class="brand">{{ app_title }} <span class="ver">v{{ version }}</span></div>
+  <div class="vaultpath" id="vaultPath"></div>
+  <div class="spacer"></div>
+  <span class="chip" id="countChip">—</span>
+  <span class="chip" id="healthChip" title="点击查看体检详情" style="cursor:pointer">体检 —</span>
+  <span class="chip" id="idleChip">—</span>
+  <button class="btn" id="btnImport">导入</button>
+  <button class="btn" id="btnExport">导出</button>
+  <button class="btn" id="btnGen">生成器</button>
+  <button class="btn primary" id="btnNew">新增</button>
+  <button class="btn" id="btnLock">锁定</button>
+</header>
+
+<main>
+  <aside class="sidebar">
+    <div class="filters">
+      <div class="searchwrap">
+        <span class="icon">⌕</span>
+        <input id="q" type="text" placeholder="搜索标题 / 用户名 / 网址 / 标签 / 备注…" autocomplete="off">
+      </div>
+      <div class="filterrow">
+        <select id="cat"><option value="">全部分类</option></select>
+        <select id="tag"><option value="">全部标签</option></select>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="archived"> 显示归档</label>
+        <label><input type="checkbox" id="fav"> 仅收藏</label>
+        <select id="sort" style="margin-left:auto;padding:2px 6px;font-size:11.5px;border:1px solid var(--border);border-radius:6px;background:var(--panel)">
+          <option value="smart">收藏优先</option>
+          <option value="updated">最近更新</option>
+          <option value="title">按标题</option>
+          <option value="created">最近创建</option>
+          <option value="category">按分类</option>
+        </select>
+      </div>
+    </div>
+    <div class="listhead"><span id="listCount">—</span><span class="faint">点击查看详情</span></div>
+    <div class="list" id="list"></div>
+  </aside>
+
+  <section class="detail" id="detail">
+    <div class="empty"><div>从左侧选一条查看详情<br><span class="faint" style="font-size:12px">或点右上角「新增」建一条</span></div></div>
+  </section>
+</main>
+
+<!-- 新增 / 编辑 -->
+<div class="overlay" id="ovItem">
+  <div class="modal">
+    <div class="mhead"><h3 id="itemTitle">新增条目</h3><button class="x" data-close>×</button></div>
+    <div class="mbody">
+      <div class="field"><label>标题</label><input type="text" id="fTitle" placeholder="例如 github.com"></div>
+      <div class="grid2">
+        <div class="field"><label>分类</label><select id="fCat"></select></div>
+        <div class="field"><label>用户名</label><input type="text" id="fUser" autocomplete="off"></div>
+      </div>
+      <div class="field">
+        <label>密码</label>
+        <div class="withbtn">
+          <input type="password" id="fPass" autocomplete="new-password">
+          <button class="btn sm" id="btnPeek" type="button">显示</button>
+          <button class="btn sm" id="btnRollPass" type="button">生成</button>
+        </div>
+      </div>
+      <div class="field"><label>网址</label><input type="text" id="fUrl" placeholder="https://"></div>
+      <div class="field"><label>标签（逗号分隔）</label><input type="text" id="fTags" placeholder="工作, 重要"></div>
+      <div class="field"><label>备注</label><textarea id="fNotes"></textarea></div>
+      <div class="faint" id="itemHint" style="font-size:12px"></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" data-close>取消</button>
+      <button class="btn primary" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 生成器 -->
+<div class="overlay" id="ovGen">
+  <div class="modal">
+    <div class="mhead"><h3>密码生成器</h3><button class="x" data-close>×</button></div>
+    <div class="mbody">
+      <div class="rowline" style="margin-bottom:14px">
+        <span class="muted" style="font-size:12px">长度</span>
+        <input type="range" id="gLen" min="8" max="64" value="20">
+        <span class="num" id="gLenNum">20</span>
+        <button class="btn sm" id="gAgain">重新生成</button>
+      </div>
+      <div class="ckline" style="margin-bottom:16px">
+        <label><input type="checkbox" id="gLower" checked> 小写</label>
+        <label><input type="checkbox" id="gUpper" checked> 大写</label>
+        <label><input type="checkbox" id="gDigits" checked> 数字</label>
+        <label><input type="checkbox" id="gSymbols" checked> 符号</label>
+        <label><input type="checkbox" id="gAvoid"> 排除易混字符</label>
+      </div>
+      <div class="genout">
+        <span class="v" id="gMain">—</span>
+        <button class="btn sm" id="gCopy">复制</button>
+      </div>
+      <div class="genlist" id="gList"></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" data-close>关闭</button>
+      <button class="btn primary" id="gUse">填入新增表单</button>
+    </div>
+  </div>
+</div>
+
+<!-- 体检 -->
+<div class="overlay" id="ovAudit">
+  <div class="modal wide">
+    <div class="mhead"><h3>安全体检</h3><button class="x" data-close>×</button></div>
+    <div class="mbody" id="auditBody"></div>
+    <div class="mfoot">
+      <label style="margin-right:auto;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="auditAll"> 包含归档条目
+      </label>
+      <button class="btn" data-close>关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 导入 -->
+<div class="overlay" id="ovImport">
+  <div class="modal">
+    <div class="mhead"><h3>导入</h3><button class="x" data-close>×</button></div>
+    <div class="mbody">
+      <div class="field">
+        <label>选择 1PUX / CSV / JSON 文件</label>
+        <input type="file" id="impFile" accept=".1pux,.pux,.csv,.json">
+      </div>
+      <label style="font-size:12.5px;color:var(--muted);display:flex;gap:6px;align-items:center">
+        <input type="checkbox" id="impOverwrite"> 已存在同一条目时用新数据覆盖（默认跳过）
+      </label>
+      <div class="faint" style="font-size:12px;margin-top:12px">
+        按 1Password 的条目标识去重，同一份文件重复导入不会产生重复数据。
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" data-close>取消</button>
+      <button class="btn primary" id="btnDoImport">开始导入</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+const TOKEN = document.body.dataset.token;
+const IDLE_LOCK = parseInt(document.body.dataset.idle || '600', 10);
+const CAT_LABELS = {};
+
+const S = {
+  items: [], selectedId: null, detail: null, meta: null,
+  filters: { q: '', cat: '', tag: '', archived: false, fav: false, sort: 'smart' },
+  editMode: null, genValue: '', idleLeft: IDLE_LOCK, clipboardTimer: null,
+  heartbeatTimer: null, gone: false
+};
+
+/* ── 基础工具 ── */
+async function api(path, opts = {}) {
+  const init = { ...opts, headers: { 'X-PM-Token': TOKEN, ...(opts.headers || {}) } };
+  if (init.body && typeof init.body !== 'string' && !(init.body instanceof FormData)) {
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(init.body);
+  }
+  let res;
+  try {
+    res = await fetch(path, init);
+  } catch (err) {
+    // 连接层就失败 = 服务进程没了。走统一兜底，别让用户看到裸的 fetch 报错。
+    serviceGone();
+    throw new Error('服务已停止');
+  }
+  // 服务端每次请求都会刷新活跃时间，前端倒计时跟着归位即可（服务端才是权威）
+  S.idleLeft = IDLE_LOCK;
+  let data = null;
+  try { data = await res.json(); } catch (_) { /* 可能是文件流 */ }
+  if (res.status === 401) {
+    toast('会话已失效，正在返回解锁页…', 'err');
+    setTimeout(() => { location.reload(); }, 900);
+    throw new Error(data?.error || '未解锁');
+  }
+  if (!res.ok) throw new Error(data?.error || `请求失败（HTTP ${res.status}）`);
+  // 写操作会自动备份，备份提示统一在这里弹：延迟 400ms 是为了排在
+  // "已新增/已保存" 那类操作反馈之后——否则用户先看到备份再看到操作结果，顺序是反的。
+  if (data && data.backup) setTimeout(() => showBackupToast(data.backup), 400);
+  return data;
+}
+
+function showBackupToast(b) {
+  if (b.ok) toast(`已自动备份 · ${b.label}（保留 ${b.kept} 份）`, 'ok');
+  else toast(`自动备份失败：${b.error}`, 'err');
+}
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+const fmtDate = (ts) => ts ? new Date(ts * 1000).toISOString().slice(0, 10) : '—';
+const fmtSize = (n) => n < 1024 ? `${n} B` : (n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(2)} MB`);
+
+function toast(text, kind = '') {
+  const host = $('toasts');
+  if (!host) return;                       // 整页可能已被"服务已停止"替换
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.textContent = text;
+  host.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 2600);
+  setTimeout(() => el.remove(), 3000);
+}
+
+async function copyText(text, label) {
+  let ok = false;
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch (_) { ok = false; }
+  }
+  if (!ok) {
+    // 退化路径：非安全上下文或浏览器拒绝剪贴板权限时用 execCommand
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+    ta.remove();
+  }
+  if (!ok) {
+    // 绝不谎报成功：对密码管理器来说，"以为复制了其实没有"会让人粘到上一次的旧内容
+    toast('复制失败：浏览器未授予剪贴板权限。请手动选中后 ⌘C。', 'err');
+    return false;
+  }
+  toast(`已复制 ${label}，30 秒后自动清空剪贴板`, 'ok');
+  clearTimeout(S.clipboardTimer);
+  S.clipboardTimer = setTimeout(async () => {
+    try {
+      const now = await navigator.clipboard.readText();
+      if (now === text) await navigator.clipboard.writeText('');
+    } catch (_) { /* 读不到就放弃，不打扰用户 */ }
+  }, 30000);
+  return true;
+}
+
+function openOverlay(id) { $(id).classList.add('on'); }
+function closeOverlay(id) { $(id).classList.remove('on'); }
+
+document.querySelectorAll('.overlay').forEach((ov) => {
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('on'); });
+});
+document.querySelectorAll('[data-close]').forEach((b) => {
+  b.addEventListener('click', () => b.closest('.overlay').classList.remove('on'));
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') document.querySelectorAll('.overlay.on').forEach((o) => o.classList.remove('on'));
+});
+
+/* ── 列表 ── */
+async function loadMeta() {
+  S.meta = await api('/api/meta?archived=' + (S.filters.archived ? 1 : 0));
+  const cat = $('cat'), tag = $('tag');
+  const curCat = cat.value, curTag = tag.value;
+  cat.innerHTML = '<option value="">全部分类</option>' + S.meta.categories
+    .filter((c) => c.count > 0)
+    .map((c) => `<option value="${esc(c.slug)}">${esc(c.name)} (${c.count})</option>`).join('');
+  tag.innerHTML = '<option value="">全部标签</option>' + S.meta.tags
+    .map((t) => `<option value="${esc(t.tag)}">${esc(t.tag)} (${t.count})</option>`).join('');
+  cat.value = curCat; tag.value = curTag;
+  S.meta.categories.forEach((c) => { CAT_LABELS[c.slug] = c.name; });
+}
+
+async function loadList() {
+  const p = new URLSearchParams({
+    q: S.filters.q, cat: S.filters.cat, tag: S.filters.tag, sort: S.filters.sort,
+    archived: S.filters.archived ? '1' : '0', fav: S.filters.fav ? '1' : '0'
+  });
+  const data = await api('/api/items?' + p.toString());
+  S.items = data.items;
+  $('listCount').textContent = `共 ${data.count} 条`;
+  renderList();
+}
+
+function renderList() {
+  const list = $('list');
+  if (!S.items.length) {
+    list.innerHTML = '<div class="empty" style="height:auto;padding:28px 8px;font-size:12.5px">没有匹配的条目</div>';
+    return;
+  }
+  list.innerHTML = S.items.map((it) => {
+    const t2 = [it.username, it.host].filter(Boolean);
+    return `<div class="item ${it.id === S.selectedId ? 'active' : ''}" data-id="${it.id}">
+      <div class="t1">
+        ${it.favorite ? '<span class="dot fav" title="收藏"></span>' : ''}
+        ${it.archived ? '<span class="dot arch" title="已归档"></span>' : ''}
+        <span class="title">${esc(it.title)}</span>
+        ${it.has_secret ? '<span class="faint" style="font-size:11px">🔒</span>' : ''}
+        <span class="badge">${esc(it.category_name)}</span>
+      </div>
+      ${t2.length ? `<div class="t2"><span>${esc(t2[0])}</span>${t2[1] ? `<span class="host">${esc(t2[1])}</span>` : ''}</div>` : ''}
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.item').forEach((el) => {
+    el.addEventListener('click', () => selectItem(el.dataset.id));
+  });
+}
+
+/* ── 详情 ── */
+async function selectItem(id, reveal = false) {
+  S.selectedId = id;
+  renderList();
+  const detail = await api(`/api/items/${id}?reveal=${reveal ? 1 : 0}`);
+  S.detail = detail;
+  renderDetail();
+}
+
+function strengthHtml(st) {
+  if (!st) return '';
+  const bars = [0, 1, 2, 3, 4].map((i) => `<i class="${i <= st.score ? 'on-' + st.score : ''}"></i>`).join('');
+  return `<div class="strength"><span class="meter">${bars}</span>
+    <strong>${esc(st.label)}</strong><span class="faint">${Math.round(st.bits)} bit</span>
+    ${st.warnings.length ? `<span class="warns">${esc(st.warnings.slice(0, 2).join(' · '))}</span>` : ''}</div>`;
+}
+
+function renderDetail() {
+  const d = S.detail;
+  if (!d) return;
+  const fields = d.fields.map((f, i) => {
+    const isSecret = f.secret;
+    const value = isSecret && !f.revealed ? '••••••••••••' : f.value;
+    return `<div class="frow ${isSecret ? 'secret' : ''}">
+      <div class="flabel">${esc(f.label)}</div>
+      <div class="fval ${isSecret ? '' : 'plain'}">${
+        f.link ? `<a href="${esc(f.link)}" target="_blank" rel="noreferrer">${esc(value)}</a>` : esc(value)
+      }</div>
+      <div class="facts">
+        ${isSecret ? `<button class="btn sm" data-reveal="${i}">${f.revealed ? '隐藏' : '显示'}</button>` : ''}
+        <button class="btn sm" data-copy-field="${i}">复制</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  $('detail').innerHTML = `
+    <div class="dhead">
+      <div>
+        <h2>${esc(d.title)}</h2>
+        <div class="meta">
+          <span class="badge">${esc(d.category_name)}</span>
+          ${d.favorite ? '<span class="chip warn">收藏</span>' : ''}
+          ${d.archived ? '<span class="chip">已归档</span>' : ''}
+          ${d.vault ? `<span class="faint" style="font-size:11.5px">保险库 ${esc(d.vault)}</span>` : ''}
+          <span class="faint" style="font-size:11.5px">更新 ${fmtDate(d.updated_at)}</span>
+          ${d.history.length ? `<span class="faint" style="font-size:11.5px">历史密码 ${d.history.length} 条</span>` : ''}
+        </div>
+      </div>
+      <div class="dactions">
+        ${d.has_secret ? '<button class="btn" id="dCopySec">复制密码</button>' : ''}
+        <button class="btn" id="dCopyUser">复制用户名</button>
+        <button class="btn" id="dEdit">编辑</button>
+        <button class="btn" id="dArch">${d.archived ? '取消归档' : '归档'}</button>
+        <button class="btn danger" id="dDel">删除</button>
+      </div>
+    </div>
+
+    ${d.strength ? `<div class="section"><h3>密码强度</h3><div class="card" style="padding:11px 13px">${strengthHtml(d.strength)}</div></div>` : ''}
+
+    <div class="section">
+      <h3>字段</h3>
+      <div class="card">${fields || '<div class="frow"><div class="flabel faint">—</div><div class="fval faint">没有字段</div></div>'}</div>
+    </div>
+
+    ${d.tags.length ? `<div class="section"><h3>标签</h3><div class="tagchips">${d.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>` : ''}
+
+    ${d.attachments.length ? `<div class="section"><h3>附件</h3><div class="card">${
+      d.attachments.map((a) => `<div class="frow"><div class="flabel">${esc(a.name)}</div>
+        <div class="fval plain">${fmtSize(a.size)}${a.inline ? ' · 已内联加密存储' : ''}</div></div>`).join('')
+    }</div></div>` : ''}
+
+    ${d.history.length ? `<div class="section">
+      <div class="sechead">
+        <h3>历史密码（${d.history.length}）</h3>
+        <button class="btn sm" id="dHistToggle">${d.history.some((h) => h.value) ? '隐藏' : '显示'}</button>
+      </div>
+      <div class="card">${
+        d.history.slice(0, 8).map((h) => `<div class="frow"><div class="flabel">${fmtDate(h.time)}</div>
+          <div class="fval">${h.value ? esc(h.value) : '<span class="faint">••••••••</span>'}</div></div>`).join('')
+      }</div>
+    </div>` : ''}
+
+    ${d.form_rows.length ? `<div class="section">
+      <details class="formbox card"><summary>网页表单详情（${d.form_rows.length} 项，来自浏览器扩展抓取）</summary>
+        <div>${d.form_rows.map((f) => `<div class="frow"><div class="flabel">${esc(f.label)}</div>
+          <div class="fval ${f.secret ? '' : 'plain'}">${esc(f.secret ? '••••••' : f.value)}</div>
+          <div class="facts"><button class="btn sm" data-copy-raw="${esc(f.value)}">复制</button></div></div>`).join('')}</div>
+      </details>
+    </div>` : ''}
+  `;
+
+  $('detail').querySelectorAll('[data-reveal]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      const index = parseInt(b.dataset.reveal, 10);
+      const f = S.detail.fields[index];
+      if (f.revealed) {
+        // 隐藏时把明文从本地状态里一并丢掉，别让它留在 JS 堆里
+        f.revealed = false;
+        f.value = '';
+        renderDetail();
+        return;
+      }
+      try {
+        const value = await fetchPlaintext(index);
+        if (!value) { toast('这个字段在库里是空的', 'err'); return; }
+        f.value = value;
+        f.revealed = true;
+        renderDetail();
+      } catch (err) { toast(err.message, 'err'); }
+    });
+  });
+
+  $('detail').querySelectorAll('[data-copy-field]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      const index = parseInt(b.dataset.copyField, 10);
+      const f = S.detail.fields[index];
+      try {
+        // 复制不该顺手把明文摊在屏幕上——想看明文得自己点「显示」
+        const value = f.secret && !f.revealed ? await fetchPlaintext(index) : f.value;
+        if (!value) { toast('这个字段是空的', 'err'); return; }
+        const ok = await copyText(value, f.label);
+        // 剪贴板被拒时至少把明文展开，用户还能手动选中复制，不至于卡死
+        if (!ok && f.secret && !f.revealed) {
+          f.value = value;
+          f.revealed = true;
+          renderDetail();
+        }
+      } catch (err) { toast(err.message, 'err'); }
+    });
+  });
+
+  $('detail').querySelectorAll('[data-copy-raw]').forEach((b) => {
+    b.addEventListener('click', () => copyText(b.dataset.copyRaw, '字段'));
+  });
+
+  const histToggle = $('dHistToggle');
+  if (histToggle) histToggle.addEventListener('click', async () => {
+    try {
+      const fresh = await api(`/api/items/${S.detail.id}?reveal=1`);
+      const reveal = !S.detail.history.some((h) => h.value);
+      S.detail.history = fresh.history.map((h) => ({ ...h, value: reveal ? h.value : '' }));
+      renderDetail();
+    } catch (err) { toast(err.message, 'err'); }
+  });
+
+  const copySec = $('dCopySec');
+  if (copySec) copySec.addEventListener('click', async () => {
+    try {
+      // 只取明文去复制，不把 S.detail 换成 reveal=1 的版本——否则点一下复制，
+      // 整个详情页的密文字段就全亮在屏幕上了。
+      const fresh = await api(`/api/items/${S.detail.id}?reveal=1`);
+      const value = secValueOf(fresh);
+      if (!value) { toast('这条没有可复制的密文', 'err'); return; }
+      const ok = await copyText(value, fresh.secret_label || '密码');
+      if (!ok) {
+        // 剪贴板被拒时把主密文字段展开，用户还能手动复制
+        const index = S.detail.fields.findIndex((x) => x.secret && x.label === (fresh.secret_label || '密码'));
+        const target = index >= 0 ? S.detail.fields[index] : S.detail.fields.find((x) => x.secret);
+        if (target && !target.revealed) {
+          target.value = value;
+          target.revealed = true;
+          renderDetail();
+        }
+      }
+    } catch (err) { toast(err.message, 'err'); }
+  });
+
+  $('dCopyUser').addEventListener('click', () => {
+    const u = S.detail.username;
+    u ? copyText(u, '用户名') : toast('这条没有记录用户名');
+  });
+
+  $('dEdit').addEventListener('click', async () => {
+    let source = S.detail;
+    if (S.detail.has_secret) {
+      try {
+        // 编辑是有意为之的动作，先把明文取回来填进表单
+        source = await api(`/api/items/${S.detail.id}?reveal=1`);
+      } catch (err) {
+        toast('读取明文失败，密码框留空（留空保存不会覆盖原密码）', 'err');
+      }
+    }
+    openItemModal(source);
+  });
+  $('dArch').addEventListener('click', async () => {
+    await api(`/api/items/${S.detail.id}`, { method: 'PATCH', body: { archived: !S.detail.archived } });
+    toast(S.detail.archived ? '已取消归档' : '已归档', 'ok');
+    await refresh();
+    await selectItem(S.selectedId);
+  });
+  $('dDel').addEventListener('click', async () => {
+    if (!confirm(`确认删除「${S.detail.title}」？此操作不可撤销。`)) return;
+    await api(`/api/items/${S.detail.id}`, { method: 'DELETE' });
+    toast('已删除', 'ok');
+    S.selectedId = null; S.detail = null;
+    $('detail').innerHTML = '<div class="empty">已删除</div>';
+    await refresh();
+  });
+}
+
+function secValueOf(detail) {
+  const f = detail.fields.find((x) => x.secret && x.value);
+  return f ? f.value : '';
+}
+
+/**
+ * 按需取回某个密文字段的明文。
+ *
+ * 详情接口默认是 reveal=0，密文字段的 value **本来就是空串**（不是打码后的假值，
+ * 是服务端根本没发过来）。所以「显示」按钮必须真的去取一次明文，光翻转一个本地
+ * 标志位是什么都显示不出来的。
+ */
+async function fetchPlaintext(index) {
+  if (!S.detail) return '';
+  const target = S.detail.fields[index];
+  if (!target) return '';
+  const fresh = await api(`/api/items/${S.detail.id}?reveal=1`);
+  const match = fresh.fields.find((x) => x.secret && x.label === target.label);
+  const picked = match || fresh.fields[index];
+  return picked ? picked.value : '';
+}
+
+/* ── 新增 / 编辑弹层 ── */
+function fillCatSelect(selected) {
+  $('fCat').innerHTML = S.meta.categories
+    .map((c) => `<option value="${esc(c.slug)}" ${c.slug === selected ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+}
+
+function openItemModal(detail) {
+  S.editMode = detail ? detail.id : null;
+  $('itemTitle').textContent = detail ? '编辑条目' : '新增条目';
+  fillCatSelect(detail ? detail.category : 'login');
+  $('fTitle').value = detail ? detail.title : '';
+  $('fUser').value = detail ? detail.username : '';
+  $('fPass').value = detail ? secValueOf(detail) : '';
+  $('fUrl').value = detail ? (detail.urls.find((u) => u.primary)?.url || detail.urls[0]?.url || '') : '';
+  $('fTags').value = detail ? detail.tags.join(', ') : '';
+  $('fNotes').value = detail ? detail.notes : '';
+  $('itemHint').textContent = detail ? '' : '密码留空会自动生成一个强密码。';
+  $('fPass').type = 'password';
+  openOverlay('ovItem');
+  setTimeout(() => $('fTitle').focus(), 40);
+}
+
+$('btnPeek').addEventListener('click', () => {
+  const el = $('fPass');
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  $('btnPeek').textContent = show ? '隐藏' : '显示';
+});
+
+$('btnRollPass').addEventListener('click', async () => {
+  const d = await api('/api/gen', { method: 'POST', body: { length: 20 } });
+  $('fPass').value = d.passwords[0].value;
+  $('fPass').type = 'text';
+  $('btnPeek').textContent = '隐藏';
+  toast('已生成新密码', 'ok');
+});
+
+$('btnSave').addEventListener('click', async () => {
+  const body = {
+    title: $('fTitle').value.trim(),
+    category: $('fCat').value,
+    username: $('fUser').value,
+    password: $('fPass').value,
+    url: $('fUrl').value.trim(),
+    notes: $('fNotes').value,
+    tags: $('fTags').value.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
+  };
+  if (!body.title) { toast('标题不能为空', 'err'); return; }
+  try {
+    if (S.editMode) {
+      await api(`/api/items/${S.editMode}`, { method: 'PATCH', body });
+      toast('已保存', 'ok');
+      closeOverlay('ovItem');
+      await refresh();
+      await selectItem(S.editMode, true);
+    } else {
+      const created = await api('/api/items', { method: 'POST', body });
+      toast('已新增', 'ok');
+      closeOverlay('ovItem');
+      await refresh();
+      await selectItem(created.item.id, true);
+    }
+  } catch (err) { toast(err.message, 'err'); }
+});
+
+$('btnNew').addEventListener('click', async () => {
+  if (!S.meta) await loadMeta();
+  openItemModal(null);
+});
+
+/* ── 生成器 ── */
+async function runGen() {
+  const body = {
+    length: parseInt($('gLen').value, 10),
+    lower: $('gLower').checked, upper: $('gUpper').checked,
+    digits: $('gDigits').checked, symbols: $('gSymbols').checked,
+    avoid_ambiguous: $('gAvoid').checked, count: 4
+  };
+  const d = await api('/api/gen', { method: 'POST', body });
+  S.genValue = d.passwords[0].value;
+  $('gMain').textContent = d.passwords[0].value;
+  $('gList').innerHTML = d.passwords.slice(1).map((p) =>
+    `<div class="genout"><span class="v">${esc(p.value)}</span>
+       <span class="faint" style="font-size:11px">${esc(p.strength.label)}</span>
+       <button class="btn sm" data-gencopy="${esc(p.value)}">复制</button></div>`).join('');
+  $('gList').querySelectorAll('[data-gencopy]').forEach((b) => {
+    b.addEventListener('click', () => copyText(b.dataset.gencopy, '密码'));
+  });
+}
+
+$('btnGen').addEventListener('click', async () => {
+  openOverlay('ovGen');
+  await runGen();
+});
+$('gLen').addEventListener('input', () => { $('gLenNum').textContent = $('gLen').value; });
+['gLower', 'gUpper', 'gDigits', 'gSymbols', 'gAvoid'].forEach((id) => {
+  $(id).addEventListener('change', () => runGen().catch((e) => toast(e.message, 'err')));
+});
+$('gLen').addEventListener('change', () => runGen().catch((e) => toast(e.message, 'err')));
+$('gAgain').addEventListener('click', () => runGen().catch((e) => toast(e.message, 'err')));
+$('gCopy').addEventListener('click', () => copyText(S.genValue, '密码'));
+$('gUse').addEventListener('click', async () => {
+  if (!S.meta) await loadMeta();
+  closeOverlay('ovGen');
+  openItemModal(null);
+  $('fPass').value = S.genValue;
+});
+
+/* ── 体检 ── */
+async function runAudit() {
+  const d = await api('/api/audit?archived=' + ($('auditAll').checked ? 1 : 0));
+  const color = d.health >= 70 ? 'var(--ok)' : (d.health >= 40 ? 'var(--warn)' : 'var(--bad)');
+  const labels = ['极弱', '弱', '一般', '强', '极强'];
+  const max = Math.max(1, ...d.histogram);
+  const grouped = {};
+  d.findings.forEach((f) => { (grouped[f.kind] = grouped[f.kind] || []).push(f); });
+
+  $('auditBody').innerHTML = `
+    <div class="healthwrap">
+      <div>
+        <div class="healthscore" style="color:${color}">${d.health}<span class="faint" style="font-size:15px">/100</span></div>
+        <div class="faint" style="font-size:12px">健康分</div>
+      </div>
+      <div class="histo">
+        ${d.histogram.map((n, i) => `<div class="hrow"><span class="hlab">${labels[i]}</span>
+          <span class="hbar"><i style="width:${(n / max * 100).toFixed(0)}%;background:${i >= 3 ? '#16a34a' : (i === 2 ? '#f59e0b' : '#dc2626')}"></i></span>
+          <span class="hnum">${n}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="faint" style="font-size:12px;margin-bottom:14px">
+      覆盖 ${d.total} 条 · ${d.with_password} 条含密码 · 共 ${d.findings.length} 项问题
+      ${d.with_history ? ` · ${d.with_history} 条携带 1Password 密码历史（正常特性，未计入问题）` : ''}
+    </div>
+    ${Object.keys(grouped).length === 0 ? '<div class="faint">没有发现明显问题。</div>' : ''}
+    ${Object.entries(grouped).map(([kind, rows]) => `
+      <div class="section"><h3>${esc(d.labels[kind] || kind)}（${rows.length}）</h3>
+        <div class="card findings"><ul>
+          ${rows.slice(0, 40).map((f) => `<li>
+            <button data-goto="${f.item_id}">${esc(f.title)}</button>
+            <span class="det">${esc(f.detail)}</span></li>`).join('')}
+        </ul>${rows.length > 40 ? `<div class="faint" style="padding:7px 9px;font-size:12px">…另有 ${rows.length - 40} 条</div>` : ''}</div>
+      </div>`).join('')}
+  `;
+  $('auditBody').querySelectorAll('[data-goto]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      closeOverlay('ovAudit');
+      if (S.filters.archived) { /* 归档已显示 */ } else {
+        S.filters.archived = true; $('archived').checked = true; await loadList();
+      }
+      const found = S.items.some((i) => i.id === b.dataset.goto);
+      if (!found) { S.filters.q = ''; $('q').value = ''; await loadList(); }
+      await selectItem(b.dataset.goto);
+    });
+  });
+}
+
+$('healthChip').addEventListener('click', async () => {
+  openOverlay('ovAudit');
+  await runAudit();
+});
+$('auditAll').addEventListener('change', () => runAudit().catch((e) => toast(e.message, 'err')));
+
+/* ── 导入 / 导出 ── */
+$('btnImport').addEventListener('click', () => openOverlay('ovImport'));
+$('btnDoImport').addEventListener('click', async () => {
+  const file = $('impFile').files[0];
+  if (!file) { toast('请先选择文件', 'err'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('overwrite', $('impOverwrite').checked ? '1' : '0');
+  $('btnDoImport').disabled = true;
+  try {
+    const d = await api('/api/import', { method: 'POST', body: fd });
+    toast(`导入完成：新增 ${d.added} · 更新 ${d.updated} · 跳过 ${d.skipped}`, 'ok');
+    closeOverlay('ovImport');
+    $('impFile').value = '';
+    await refresh();
+  } catch (err) { toast(err.message, 'err'); }
+  finally { $('btnDoImport').disabled = false; }
+});
+
+$('btnExport').addEventListener('click', () => {
+  const reveal = confirm('导出内容包含明文密码吗？\n\n「确定」= 包含明文（注意存放安全）\n「取消」= 密文字段打码');
+  window.location.href = `/api/export?reveal=${reveal ? 1 : 0}&token=${encodeURIComponent(TOKEN)}`;
+});
+
+/* ── 锁定 / 会话 ── */
+$('btnLock').addEventListener('click', async () => {
+  await api('/api/lock', { method: 'POST' });
+  location.reload();
+});
+
+function tickIdle() {
+  if (S.gone) return;                       // 整页已被替换，$() 会拿不到元素
+  S.idleLeft = Math.max(0, S.idleLeft - 1);
+  const m = Math.floor(S.idleLeft / 60), s = S.idleLeft % 60;
+  $('idleChip').textContent = `锁定 ${m}:${String(s).padStart(2, '0')}`;
+  if (S.idleLeft <= 0) {
+    toast('空闲超时，已自动锁定', 'err');
+    setTimeout(() => location.reload(), 700);
+    return;
+  }
+  setTimeout(tickIdle, 1000);
+}
+
+/* ── 服务存活探测 ──────────────────────────────────────────────────────────
+ * 服务进程一停，内存里的密钥就没了，但**浏览器标签页上还显示着刚才渲染出来的
+ * 密码字段**——页面不会因为服务死掉而自己消失。这是个真实的信息泄露面：人离开
+ * 工位，屏幕上还摆着明文。
+ *
+ * 所以每 5 秒 ping 一次 /api/status（该接口不需要 CSRF token），连不上就立刻把
+ * 整页替换成停止提示。标签页切回前台时也立即补一次探测——那是"人回到电脑前"
+ * 的时刻，最需要已经清干净。
+ * ------------------------------------------------------------------------ */
+const HEARTBEAT_MS = 5000;
+
+function serviceGone() {
+  if (S.gone) return;
+  S.gone = true;
+  S.detail = null;
+  S.items = [];
+  clearTimeout(S.clipboardTimer);
+  document.body.innerHTML = `
+    <div class="gone"><div class="box">
+      <div class="icon">🔒</div>
+      <h2>服务已停止，页面内容已清空</h2>
+      <p>内存中的解锁密钥随进程一起消失了，磁盘上只剩密文。</p>
+      <p>重新启动：在终端运行 <code>pm web</code></p>
+      <p class="faint" style="font-size:12px;margin-top:14px">
+        如果你只是想换个端口重来，用 <code>pm web -p 8849</code>。
+      </p>
+    </div></div>`;
+}
+
+async function heartbeat() {
+  if (S.gone) return;
+  try {
+    const res = await fetch('/api/status', { cache: 'no-store' });
+    if (!res.ok) throw new Error('bad status');
+  } catch (_) {
+    serviceGone();
+    return;
+  }
+  S.heartbeatTimer = setTimeout(heartbeat, HEARTBEAT_MS);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && !S.gone) {
+    clearTimeout(S.heartbeatTimer);
+    heartbeat();
+  }
+});
+
+async function refresh() {
+  await loadMeta();
+  await loadList();
+  const st = await api('/api/status');
+  $('countChip').textContent = `${st.active} 活跃 · ${st.archived} 归档`;
+  $('vaultPath').textContent = st.vault;
+  try {
+    const a = await api('/api/audit');
+    $('healthChip').textContent = `体检 ${a.health}`;
+    $('healthChip').className = 'chip ' + (a.health >= 70 ? 'ok' : (a.health >= 40 ? 'warn' : 'bad'));
+  } catch (_) { $('healthChip').textContent = '体检 —'; }
+}
+
+/* ── 过滤器绑定 ── */
+let searchTimer = null;
+$('q').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    S.filters.q = $('q').value.trim();
+    await loadList();
+  }, 180);
+});
+['cat', 'tag'].forEach((k) => {
+  $(k).addEventListener('change', async () => { S.filters[k] = $(k).value; await loadList(); });
+});
+['archived', 'fav'].forEach((k) => {
+  $(k).addEventListener('change', async () => {
+    S.filters[k] = $(k).checked;
+    if (k === 'archived') await loadMeta();
+    await loadList();
+  });
+});
+$('sort').addEventListener('change', async () => { S.filters.sort = $('sort').value; await loadList(); });
+
+/* ── 启动 ── */
+(async function boot() {
+  const st = await api('/api/status');
+  await refresh();
+  tickIdle();
+  heartbeat();
+  if (!st.items) toast('保险库还是空的，点「导入」灌数据', '');
+})();
+</script>
+</body>
+</html>

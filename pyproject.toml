@@ -1,0 +1,18 @@
+[project]
+name = "password-manager"
+version = "0.1.5"
+description = "Local-first encrypted password manager — CLI + Web, 1Password import"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "cryptography>=44.0",
+    "flask>=3.0",
+]
+
+
+[project.scripts]
+pm = "password_manager.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>解锁 · {{ app_title }}</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --border: #e3e6ea;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-soft: #eff4ff;
+    --bad: #dc2626;
+    --ok: #15803d;
+    --warn: #b45309;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  /*
+   * 居中不要用 body{display:grid; place-items:center}：
+   * 当卡片比视口高时，grid 会把它居中到负偏移，而滚动原点在 0，
+   * 于是卡片顶部溢出到可视区之外且**永远滚不到**，主密码框就被切掉了。
+   * flex + 子元素 margin:auto 是同一件事的安全版本——空间不够时
+   * 自动边距退化成 0，卡片从头开始排，正常可滚。
+   */
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;              /* 移动端/小窗口按真实可视高度算 */
+    padding: 24px 20px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  }
+  .card {
+    width: min(420px, 100%);
+    margin: auto;                    /* ← 安全的垂直+水平居中 */
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 34px 30px 28px;
+    box-shadow: 0 10px 40px rgba(15, 23, 42, .07), 0 2px 6px rgba(15, 23, 42, .04);
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .brand h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+  .brand .ver { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .sub { color: var(--muted); font-size: 12.5px; margin: 0 0 22px; }
+  label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+  input[type=password] {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: var(--mono);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #fbfcfd;
+    color: var(--text);
+    outline: none;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  input[type=password]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  button {
+    width: 100%;
+    margin-top: 14px;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 0;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background .12s;
+  }
+  button:hover { background: #1d4ed8; }
+  button:disabled { background: #9aa6b8; cursor: default; }
+  button.ghost {
+    width: auto; margin: 0; padding: 6px 12px; font-size: 12.5px; font-weight: 500;
+    color: var(--accent); background: var(--accent-soft);
+  }
+  .msg { min-height: 20px; margin-top: 12px; font-size: 12.5px; }
+  .msg.err { color: var(--bad); }
+  .msg.ok { color: var(--ok); }
+  .hint {
+    margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--border);
+    font-size: 12px; color: var(--muted);
+  }
+  .hint code {
+    font-family: var(--mono); background: #f1f3f6; padding: 1px 5px; border-radius: 4px;
+    font-size: 11.5px; color: #475569;
+  }
+  .row { display: flex; align-items: center; gap: 10px; }
+</style>
+</head>
+<body>
+<form class="card" id="form">
+  <div class="brand">
+    <h1>{{ app_title }}</h1>
+    <span class="ver">v{{ version }}</span>
+  </div>
+  <p class="sub">保险库已加密锁定，输入主密码继续。</p>
+
+  <label for="pw">主密码</label>
+  <input id="pw" type="password" autocomplete="current-password" autofocus>
+  <button type="submit" id="go">解锁</button>
+  <div class="msg" id="msg"></div>
+
+  {% if cache_available %}
+  <div class="row hint" id="cacheRow">
+    <span>钥匙串里还有效的缓存密钥可以直接解锁。</span>
+    <button type="button" class="ghost" id="cacheBtn">用缓存解锁</button>
+  </div>
+  {% endif %}
+
+  <div class="hint">
+    密钥只在服务端内存中驻留，空闲即自动清除。忘记主密码没有找回通道，请用
+    <code>pm export</code> 定期备份。
+  </div>
+</form>
+
+<script>
+const form = document.getElementById('form');
+const pw = document.getElementById('pw');
+const msg = document.getElementById('msg');
+const go = document.getElementById('go');
+// 「用缓存解锁」这一行由服务端按真实缓存状态决定是否渲染（见 cache_available），
+// 不在前端插入元素——加载后改布局会让居中的卡片重新居中，看起来就是往上蹿一下。
+const cacheBtn = document.getElementById('cacheBtn');
+
+function say(text, kind) {
+  msg.textContent = text || '';
+  msg.className = 'msg' + (kind ? ' ' + kind : '');
+}
+
+async function unlock(body) {
+  go.disabled = true;
+  say('正在解锁…');
+  try {
+    const res = await fetch('/api/unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
+    });
+    const data = await res.json();
+    if (res.ok) {
+      say(data.via === 'keychain' ? '已用缓存密钥解锁，正在进入…' : '解锁成功，正在进入…', 'ok');
+      location.reload();
+      return;
+    }
+    say(data.error || '解锁失败。', 'err');
+    pw.select();
+  } catch (err) {
+    say('请求失败：' + err.message, 'err');
+  } finally {
+    go.disabled = false;
+  }
+}
+
+form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (!pw.value) { say('请输入主密码。', 'err'); return; }
+  unlock({ password: pw.value });
+});
+
+if (cacheBtn) {
+  cacheBtn.addEventListener('click', () => unlock({ password: '', cache: true }));
+}
+</script>
+</body>
+</html>
